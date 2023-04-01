@@ -58,11 +58,7 @@ def compute_cost(
 
   batch_size, max_num_boxes = tgt_labels.shape[:2]
   num_queries = out_prob.shape[1]
-  if target_is_onehot:
-    mask = tgt_labels[..., 0] == 0  # [B, M]
-  else:
-    mask = tgt_labels != 0  # [B, M]
-
+  mask = tgt_labels[..., 0] == 0 if target_is_onehot else tgt_labels != 0
   # [B, N, M]
   cost_class = -out_prob  # DETR uses -prob for matching.
   max_cost_class = 0.0
@@ -200,7 +196,7 @@ class BaseModelWithMatching(base_model.BaseModel):  # pytype: disable=ignored-ab
     elif matcher_name == 'hungarian_cover_tpu':
       matcher_fn = matchers.hungarian_cover_tpu_matcher
     else:
-      raise ValueError('Unknown matcher (%s).' % matcher_name)
+      raise ValueError(f'Unknown matcher ({matcher_name}).')
 
     return jax.lax.stop_gradient(matcher_fn(cost))
 
@@ -208,13 +204,10 @@ class BaseModelWithMatching(base_model.BaseModel):  # pytype: disable=ignored-ab
                       logits: jnp.ndarray,
                       log_p: bool = False) -> jnp.ndarray:
     is_sigmoid = self.config.get('sigmoid_loss', False)
-    # We can overwrite logit normalization explicitly if we wanted to, so we
-    # can normalize logits using softmax but using sigmoid loss.
-    is_sigmoid = self.config.get('sigmoid_logit_norm', is_sigmoid)
-    if not is_sigmoid:
-      return jax.nn.log_softmax(logits) if log_p else jax.nn.softmax(logits)
-    else:
+    if is_sigmoid := self.config.get('sigmoid_logit_norm', is_sigmoid):
       return jax.nn.log_sigmoid(logits) if log_p else jax.nn.sigmoid(logits)
+    else:
+      return jax.nn.log_softmax(logits) if log_p else jax.nn.softmax(logits)
 
   def labels_losses_and_metrics(
       self,
@@ -507,10 +500,10 @@ class BaseModelWithMatching(base_model.BaseModel):  # pytype: disable=ignored-ab
           kwargs = {'log': False} if loss == 'labels' else {}
           l_dict, m_dict = self.get_losses_and_metrics(loss, aux_outputs, batch,
                                                        indices, **kwargs)
-          l_dict = {k + f'_aux_{i}': v for k, v in l_dict.items()}
+          l_dict = {f'{k}_aux_{i}': v for k, v in l_dict.items()}
           loss_dict.update(l_dict)
           # Add metrics for aux outputs:
-          metrics_dict.update({k + f'_aux_{i}': v for k, v in m_dict.items()})
+          metrics_dict.update({f'{k}_aux_{i}': v for k, v in m_dict.items()})
 
     # Compute the total loss by combining loss_dict with loss_terms_weights:
     total_loss = []

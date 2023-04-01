@@ -28,24 +28,22 @@ class ViTTest(parameterized.TestCase):
     rng = jax.random.PRNGKey(0)
 
     # Config for model.
-    if not use_default_config:
-      config = ml_collections.ConfigDict({
-          'model':
-              dict(
-                  num_heads=2,
-                  num_layers=1,
-                  representation_size=16,
-                  mlp_dim=32,
-                  dropout_rate=0.,
-                  attention_dropout_rate=0.,
-                  hidden_size=16,
-                  patches={'size': (4, 4)},
-                  positional_embedding=positional_embedding,
-                  classifier='gap',
-                  data_dtype_str='float32')
-      })
-    else:
-      config = None
+    config = (None if use_default_config else ml_collections.ConfigDict({
+        'model':
+        dict(
+            num_heads=2,
+            num_layers=1,
+            representation_size=16,
+            mlp_dim=32,
+            dropout_rate=0.0,
+            attention_dropout_rate=0.0,
+            hidden_size=16,
+            patches={'size': (4, 4)},
+            positional_embedding=positional_embedding,
+            classifier='gap',
+            data_dtype_str='float32',
+        )
+    }))
     model = vit.ViTMultiLabelClassificationModel(
         config=config,
         dataset_meta_data={

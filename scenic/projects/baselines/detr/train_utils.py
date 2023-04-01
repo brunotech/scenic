@@ -114,7 +114,7 @@ class DetrGlobalEvaluator():
     """
     if not tf.io.gfile.exists(path):
       tf.io.gfile.makedirs(path)
-    json_file_name = f"predictions{fname_app if fname_app else ''}.json"
+    json_file_name = f"predictions{fname_app or ''}.json"
     json_file_path = os.path.join(path, json_file_name)
 
     def _convert_to_serializable(obj):
@@ -180,13 +180,10 @@ def normalize_metrics_summary(metrics_summary, split,
   for key, val in metrics_summary.items():
     metrics_summary[key] = val[0] / val[1]
     if np.isnan(metrics_summary[key]):
-      raise train_utils.TrainingDivergedError(
-          'NaN detected in {}'.format(f'{split}_{key}'))
+      raise train_utils.TrainingDivergedError(f'NaN detected in {split}_{key}')
 
-  # compute and add object_detection_loss using globally normalize terms
-  object_detection_loss = 0
-  for loss_term_key in object_detection_loss_keys:
-    object_detection_loss += metrics_summary[loss_term_key]
+  object_detection_loss = sum(metrics_summary[loss_term_key]
+                              for loss_term_key in object_detection_loss_keys)
   metrics_summary['object_detection_loss'] = object_detection_loss
 
   return metrics_summary
@@ -220,8 +217,8 @@ def process_and_fetch_to_host(pred_or_tgt, batch_mask):
   leaves, treedef = jax.tree_flatten(pred_or_tgt)
 
   batch_shape = batch_mask.shape
-  assert all([leaf.shape[:2] == batch_shape for leaf in leaves]), (
-      'Inconsistent batch shapes.')
+  assert all(leaf.shape[:2] == batch_shape
+             for leaf in leaves), 'Inconsistent batch shapes.'
 
   # Split batched leaves into lists of examples:
   leaves = list(map(_split_mini_batches, leaves))
@@ -263,11 +260,7 @@ def draw_boxes_side_by_side(pred: Dict[str, Any], batch: Dict[str, Any],
 
       bcx, bcy, bw, bh = bb * [w, h, w, h]
       bb = [bcx - bw / 2, bcy - bh / 2, bcx + bw / 2, bcy + bh / 2]
-      if is_crowd:
-        edgecolor = (255, 0, 0)
-      else:
-        edgecolor = (255, 255, 0)
-
+      edgecolor = (255, 0, 0) if is_crowd else (255, 255, 0)
       gtdraw.rectangle(bb, fill=None, outline=edgecolor, width=3)
       gtdraw.text([bb[0], max(bb[1] - 10, 0)],
                   label_map[cls],

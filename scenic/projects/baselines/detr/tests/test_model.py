@@ -364,7 +364,7 @@ class DETRModelTestWithAuxLoss(parameterized.TestCase):
     base_unscaled = []
     for b in base:
       if b.split('_aux_')[0] in self.model.loss_terms_weights.keys():
-        base_unscaled.append(b + '_unscaled')
+        base_unscaled.append(f'{b}_unscaled')
       else:
         base_unscaled.append(b)
     base_scaled = [

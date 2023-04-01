@@ -68,7 +68,7 @@ class Compose:
     return features
 
   def __repr__(self):
-    format_string = self.__class__.__name__ + '('
+    format_string = f'{self.__class__.__name__}('
     for t in self.transforms:
       format_string += '\n'
       format_string += '    {0}'.format(t)
@@ -84,10 +84,7 @@ class RandomHorizontalFlip:
 
   def __call__(self, features):
     rnd = tf.random.uniform([], minval=0.0, maxval=1.0, dtype=tf.float32)
-    if rnd < self.p:
-      return hflip(identity(features))  # Identity helps avoid autograph errors.
-    else:
-      return identity(features)
+    return hflip(identity(features)) if rnd < self.p else identity(features)
 
 
 class RandomSelect:
@@ -384,7 +381,7 @@ def resize(features, size, max_size=None):
   target = features['label']
 
   # Resize the image while preserving aspect ratio.
-  original_size = tf.shape(image)[0:2]
+  original_size = tf.shape(image)[:2]
   new_size = get_size_with_aspect_ratio(original_size, size, max_size)
   rescaled_image = tf.image.resize(image, new_size)
 

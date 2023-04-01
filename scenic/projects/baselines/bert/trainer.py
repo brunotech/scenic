@@ -352,10 +352,8 @@ def train(
       np.ceil(dataset.meta_data['num_eval_examples'] / eval_batch_size))
   steps_per_eval = config.get('steps_per_eval') or total_eval_steps
 
-  # If `global_metrics` are set in the config and we are the the lead host
-  compute_global_metrics = False
-  if config.get('global_metrics', False) and lead_host:
-    compute_global_metrics = True
+  compute_global_metrics = bool(
+      config.get('global_metrics', False) and lead_host)
   if compute_global_metrics:
     global_metrics_evaluator = bert_train_utils.BERTGlobalEvaluator(
         config.global_metrics)
@@ -471,16 +469,15 @@ def train(
           train_utils.save_checkpoint(workdir, train_state)
 
     ##################### FEWSHOT EVALUATION ############################
-    if 'fewshot' in config:
-      # Compute few-shot on-the-fly evaluation.
-      if (step % config.fewshot.log_eval_steps == 1) or (step == total_steps):
-        with report_progress.timed('fewshot'):
-          results = fewshotter.run_all(train_state, config.fewshot.datasets)
-          fewshotter.log_fewshot_summary(
-              writer=writer, step=step, results=results)
-          del results
-          writer.write_scalars(step, {'zz/epoch': step / steps_per_epoch})
-        writer.flush()
+    if ('fewshot' in config and (step % config.fewshot.log_eval_steps == 1)
+        or (step == total_steps)):
+      with report_progress.timed('fewshot'):
+        results = fewshotter.run_all(train_state, config.fewshot.datasets)
+        fewshotter.log_fewshot_summary(
+            writer=writer, step=step, results=results)
+        del results
+        writer.write_scalars(step, {'zz/epoch': step / steps_per_epoch})
+      writer.flush()
 
     chrono.resume()  # un-pause now
   # Wait until computations are done before exiting.

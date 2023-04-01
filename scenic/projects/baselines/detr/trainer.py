@@ -260,36 +260,35 @@ def train_and_evaluate(
     train_state, start_step = train_utils.restore_checkpoint(
         workdir, train_state)
 
-  if (start_step == 0  # Which means "no" checkpoint is restored!
-      and config.get('init_from') is not None):
-    init_checkpoint_path = config.init_from.get('checkpoint_path')
-    restored_train_state = flax_restore_checkpoint(
-        init_checkpoint_path, target=None)
-    train_state = pretrain_utils.init_from_pretrain_state(
-        train_state,
-        restored_train_state,
-        ckpt_prefix_path=config.init_from.get('ckpt_prefix_path'),
-        model_prefix_path=config.init_from.get('model_prefix_path'),
-        name_mapping=config.init_from.get('name_mapping'),
-        skip_regex=config.init_from.get('skip_regex'))
-    # Free unecessary memory.
-    del restored_train_state
-  elif start_step == 0 and config.get('load_pretrained_backbone', False):
-    # Only load pretrained backbone if we are at the beginning of training.
-    bb_checkpoint_path = config.pretrained_backbone_configs.get(
-        'checkpoint_path')
-    bb_train_state = flax_restore_checkpoint(bb_checkpoint_path, target=None)
+  if start_step == 0:
+    if config.get('init_from') is not None:
+      init_checkpoint_path = config.init_from.get('checkpoint_path')
+      restored_train_state = flax_restore_checkpoint(
+          init_checkpoint_path, target=None)
+      train_state = pretrain_utils.init_from_pretrain_state(
+          train_state,
+          restored_train_state,
+          ckpt_prefix_path=config.init_from.get('ckpt_prefix_path'),
+          model_prefix_path=config.init_from.get('model_prefix_path'),
+          name_mapping=config.init_from.get('name_mapping'),
+          skip_regex=config.init_from.get('skip_regex'))
+      # Free unecessary memory.
+      del restored_train_state
+    elif config.get('load_pretrained_backbone', False):
+      # Only load pretrained backbone if we are at the beginning of training.
+      bb_checkpoint_path = config.pretrained_backbone_configs.get(
+          'checkpoint_path')
+      bb_train_state = flax_restore_checkpoint(bb_checkpoint_path, target=None)
 
-    model_prefix_path = ['backbone']
-    train_state = pretrain_utils.init_from_pretrain_state(
-        train_state, bb_train_state, model_prefix_path=model_prefix_path)
+      model_prefix_path = ['backbone']
+      train_state = pretrain_utils.init_from_pretrain_state(
+          train_state, bb_train_state, model_prefix_path=model_prefix_path)
 
   update_model_state = not config.get('freeze_backbone_batch_stats', False)
-  if not update_model_state:
-    if not config.load_pretrained_backbone:
-      raise ValueError('Freezing the batch statistics of the resnet backbone '
-                       'is only possible when loading a pretrained resnet '
-                       'backbone is enabled.')
+  if not update_model_state and not config.load_pretrained_backbone:
+    raise ValueError('Freezing the batch statistics of the resnet backbone '
+                     'is only possible when loading a pretrained resnet '
+                     'backbone is enabled.')
   # Replicate the optimzier, state, and rng.
   train_state = jax_utils.replicate(train_state)
   del params  # Do not keep a copy of the initial params.
@@ -340,9 +339,7 @@ def train_and_evaluate(
     future = None
 
     def _wait(future: Optional[futures.Future]) -> Any:
-      if future is None:
-        return None
-      return future.result()
+      return None if future is None else future.result()
 
     def _add_examples(predictions, labels):
       for pred, label in zip(predictions, labels):

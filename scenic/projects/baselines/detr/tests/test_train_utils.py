@@ -25,8 +25,7 @@ def sample_cxcywh_bbox(key, batch_shape):
   w = jnp.where(cx - w / 2. <= 0., frac * 2. * cx, w)
   h = jnp.where(cy - h / 2. <= 0., frac * 2. * cy, h)
 
-  bbox = jnp.concatenate([cx, cy, w, h], axis=-1)
-  return bbox
+  return jnp.concatenate([cx, cy, w, h], axis=-1)
 
 
 class TrainUtilsTest(parameterized.TestCase):
@@ -78,8 +77,11 @@ class TrainUtilsTest(parameterized.TestCase):
   def test_coco_global_val_metrics_function_results(self):
     """Test coco_global_metrics_function correctness on a single box."""
     data_dir = os.path.join(
-        os.path.normpath(os.path.dirname(__file__) + '/../../../../'),
-        'dataset_lib', 'coco_dataset', 'data')
+        os.path.normpath(f'{os.path.dirname(__file__)}/../../../../'),
+        'dataset_lib',
+        'coco_dataset',
+        'data',
+    )
     test_annotations_path = os.path.join(
         data_dir, 'instances_val2017_unittest.json')
     outputs, targets = _get_fake_detection_example()
@@ -130,8 +132,7 @@ class DETRVisualizationsTest(parameterized.TestCase):
     w = jnp.where(cx - w/2. <= 0., frac * 2. * cx, w)
     h = jnp.where(cy - h/2. <= 0., frac * 2. * cy, h)
 
-    bbox = jnp.concatenate([cx, cy, w, h], axis=-1)
-    return bbox
+    return jnp.concatenate([cx, cy, w, h], axis=-1)
 
   def _generate_visualization_inputs(self):
     """Returns fake inputs for visualization tests."""
@@ -206,16 +207,17 @@ def _get_fake_detection_example(dataset='coco'):
   h, w = 427, 640
   bx, by, bw, bh = 217.62, 240.54, 38.99, 57.75
 
-  outputs = {}
-  outputs['pred_boxes'] = np.array([
-      [(bx + bw / 2) / w, (by + bh / 2) / h, bw / w, bh / h],
-  ])
+  outputs = {
+      'pred_boxes':
+      np.array([
+          [(bx + bw / 2) / w, (by + bh / 2) / h, bw / w, bh / h],
+      ])
+  }
   outputs['pred_boxes'] = jnp.asarray(outputs['pred_boxes'])
   outputs['pred_logits'] = np.zeros((1, NUM_COCO_CLASSES))
   outputs['pred_logits'][0, 1] = 100.0
 
-  targets = {}
-  targets['size'] = np.array([h, w])
+  targets = {'size': np.array([h, w])}
   targets['orig_size'] = np.array([h, w])
   targets['image/id'] = np.array([397133])
   targets['boxes'] = outputs['pred_boxes']

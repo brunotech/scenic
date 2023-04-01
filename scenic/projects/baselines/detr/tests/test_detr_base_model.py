@@ -243,7 +243,7 @@ class TestObjectDetectionWithMatchingModel(parameterized.TestCase):
     base_unscaled = []
     for b in base:
       if b.split('_aux_')[0] in model.loss_terms_weights.keys():
-        base_unscaled.append(b + '_unscaled')
+        base_unscaled.append(f'{b}_unscaled')
       else:
         base_unscaled.append(b)
     base_scaled = [
@@ -295,11 +295,13 @@ class TestObjectDetectionWithMatchingModel(parameterized.TestCase):
     for key in ['loss_class', 'loss_bbox', 'loss_giou']:
       for i in range(NUM_AUX_OUTPUTS):
         self.assertAlmostEqual(
-            metrics_dict[key + '_unscaled'],
-            metrics_dict[key + f'_aux_{i}_unscaled'],
-            places=5)
-        self.assertAlmostEqual(
-            metrics_dict[key], metrics_dict[key + f'_aux_{i}'], places=5)
+            metrics_dict[f'{key}_unscaled'],
+            metrics_dict[f'{key}_aux_{i}_unscaled'],
+            places=5,
+        )
+        self.assertAlmostEqual(metrics_dict[key],
+                               metrics_dict[f'{key}_aux_{i}'],
+                               places=5)
 
 
 if __name__ == '__main__':

@@ -39,13 +39,8 @@ def ponder_loss_fn(
     normalization = np.prod(ponder_times.shape)
 
   p_t = ponder_times + remainders
-  # We only do mean when ac_config.act_level == per_example.
-  # When ac_config.act_level == per_token, we do sum first.
-  if jnp.ndim(p_t) == 1:
-    loss = jnp.sum(p_t) / normalization
-  else:
-    loss = jnp.sum(jnp.sum(p_t, axis=-1)) / normalization
-  return loss
+  return (jnp.sum(p_t) / normalization if jnp.ndim(p_t) == 1 else
+          jnp.sum(jnp.sum(p_t, axis=-1)) / normalization)
 
 
 class UTStochasticDepth(nn.Module):
@@ -87,11 +82,10 @@ class UTStochasticDepth(nn.Module):
       return x
     if deterministic:
       return x
-    else:
-      shape = (x.shape[0],) + (1,) * (x.ndim - 1)
-      rng = self.make_rng('dropout')
-      mask = jax.random.bernoulli(rng, self.rate, shape)
-      return x * (1.0 - mask)
+    shape = (x.shape[0],) + (1,) * (x.ndim - 1)
+    rng = self.make_rng('dropout')
+    mask = jax.random.bernoulli(rng, self.rate, shape)
+    return x * (1.0 - mask)
 
 
 class Encoder1DBlock(nn.Module):
@@ -203,21 +197,20 @@ class UTEncoder(nn.Module):
               attention_dropout_rate=self.attention_dropout_rate,
               stochastic_depth=self.stochastic_depth,
               deterministic=not train,
-              name='encoderblock_' + str(i),
-              dtype=dtype)(
-                  x)
-        else:
-          encoder_block = Encoder1DBlock(
-              mlp_dim=self.mlp_dim,
-              num_heads=self.num_heads,
-              dropout_rate=self.dropout_rate,
-              attention_dropout_rate=self.attention_dropout_rate,
-              stochastic_depth=self.stochastic_depth,
-              deterministic=not train,
-              name='encoderblock',
-              dtype=dtype)
-          for i in range(self.num_layers):
-            x = encoder_block(x)
+              name=f'encoderblock_{str(i)}',
+              dtype=dtype,
+          )(x)
+        encoder_block = Encoder1DBlock(
+            mlp_dim=self.mlp_dim,
+            num_heads=self.num_heads,
+            dropout_rate=self.dropout_rate,
+            attention_dropout_rate=self.attention_dropout_rate,
+            stochastic_depth=self.stochastic_depth,
+            deterministic=not train,
+            name='encoderblock',
+            dtype=dtype)
+        for _ in range(self.num_layers):
+          x = encoder_block(x)
       auxiliary_outputs = None
     else:
       encoder_block = Encoder1DBlock(

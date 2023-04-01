@@ -73,10 +73,10 @@ class TransformsTestBase(parameterized.TestCase):
     """A wrapper that picks assertion based on tensor dtype."""
     self.assertEqual(v1.dtype, v2.dtype, msg=f'{msg}: Dtype mismatch')
 
-    if v1.dtype == tf.bool or v1.dtype == tf.int32 or v1.dtype == tf.int64:
+    if v1.dtype in [tf.bool, tf.int32, tf.int64]:
       # exact match for these data types
       self.assertTrue(np.all(np.equal(v1, v2)), msg=msg)
-    elif v1.dtype == tf.float32 or v1.dtype == tf.float64:
+    elif v1.dtype in [tf.float32, tf.float64]:
       # approximate match for all others
       np.testing.assert_allclose(
           v1, v2, equal_nan=False, err_msg=msg, rtol=5e-5)

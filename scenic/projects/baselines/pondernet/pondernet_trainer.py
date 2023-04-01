@@ -129,11 +129,11 @@ def train_step(
   new_params = optax.apply_updates(train_state.params, updates)
 
   training_logs['l2_grads'] = jnp.sqrt(
-      sum([jnp.vdot(g, g) for g in jax.tree_leaves(grad)]))
+      sum(jnp.vdot(g, g) for g in jax.tree_leaves(grad)))
   ps = jax.tree_leaves(new_params)
-  training_logs['l2_params'] = jnp.sqrt(sum([jnp.vdot(p, p) for p in ps]))
+  training_logs['l2_params'] = jnp.sqrt(sum(jnp.vdot(p, p) for p in ps))
   us = jax.tree_leaves(updates)
-  training_logs['l2_updates'] = jnp.sqrt(sum([jnp.vdot(u, u) for u in us]))
+  training_logs['l2_updates'] = jnp.sqrt(sum(jnp.vdot(u, u) for u in us))
   training_logs['learning_rate'] = lr_fn(train_state.global_step)
 
   # Logging the n_updates (N_t)
@@ -620,50 +620,48 @@ def train(
       chrono.resume()  # Un-pause now.
 
     ##################### FEWSHOT EVALUATION ############################
-    if 'fewshot' in config:
-      # Compute few-shot on-the-fly evaluation.
-      if (step % config.fewshot.log_eval_steps == 1) or (step == total_steps):
-        chrono.pause(wait_for=(train_state.params))
-        with report_progress.timed('fewshot'):
-          results = fewshotter.run_all(train_state, config.fewshot.datasets)
-          fewshotter.log_fewshot_summary(
-              writer=writer, step=step, results=results)
-          del results
-          writer.write_scalars(step, {'zz/epoch': step / steps_per_epoch})
-        writer.flush()
-        chrono.resume()  # Un-pause now.
+    if ('fewshot' in config and (step % config.fewshot.log_eval_steps == 1)
+        or (step == total_steps)):
+      chrono.pause(wait_for=(train_state.params))
+      with report_progress.timed('fewshot'):
+        results = fewshotter.run_all(train_state, config.fewshot.datasets)
+        fewshotter.log_fewshot_summary(
+            writer=writer, step=step, results=results)
+        del results
+        writer.write_scalars(step, {'zz/epoch': step / steps_per_epoch})
+      writer.flush()
+      chrono.resume()  # Un-pause now.
 
     ########### FEWSHOT EVALUATION USING VIDEO DATASETS ###############
 
-    if 'video_fewshot' in config:
-      # Compute few-shot on-the-fly evaluation using video dataset.
-      if ((step % config.video_fewshot.log_eval_steps == 1) or
-          step == total_steps):
-        chrono.pause(wait_for=(train_state.params))
-        with report_progress.timed('video_fewshot'):
-          results = video_fewshotter.run_all(train_state,
-                                             config.video_fewshot.datasets)
-          video_fewshotter.log_fewshot_summary(
-              writer=writer, step=step, results=results)
-          del results
-          writer.write_scalars(step, {'zz/epoch': step / steps_per_epoch})
-        writer.flush()
-        chrono.resume()  # Un-pause now.
+    if 'video_fewshot' in config and (
+        (step % config.video_fewshot.log_eval_steps == 1)
+        or step == total_steps):
+      chrono.pause(wait_for=(train_state.params))
+      with report_progress.timed('video_fewshot'):
+        results = video_fewshotter.run_all(train_state,
+                                           config.video_fewshot.datasets)
+        video_fewshotter.log_fewshot_summary(
+            writer=writer, step=step, results=results)
+        del results
+        writer.write_scalars(step, {'zz/epoch': step / steps_per_epoch})
+      writer.flush()
+      chrono.resume()  # Un-pause now.
 
     ##################### LINEAR-PROBE EVALUATION ##########################
-    if 'linear_probe' in config:
-      if (config.linear_probe.log_eval_steps > 0 and
-          step % config.linear_probe.log_eval_steps == 1) or (step
-                                                              == total_steps):
-        chrono.pause(wait_for=(train_state.params))
-        with report_progress.timed('linear_probe'):
-          linear_probe.run_all(
-              train_state,
-              config.linear_probe.datasets,
-              writer=writer,
-              repr_step=step)
-        writer.flush()
-        chrono.resume()  # Un-pause now.
+    if ('linear_probe' in config and
+        (config.linear_probe.log_eval_steps > 0
+         and step % config.linear_probe.log_eval_steps == 1)
+        or (step == total_steps)):
+      chrono.pause(wait_for=(train_state.params))
+      with report_progress.timed('linear_probe'):
+        linear_probe.run_all(
+            train_state,
+            config.linear_probe.datasets,
+            writer=writer,
+            repr_step=step)
+      writer.flush()
+      chrono.resume()  # Un-pause now.
 
   # Wait until computations are done before exiting.
   jax.random.normal(jax.random.PRNGKey(0), ()).block_until_ready()
